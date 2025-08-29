@@ -74,11 +74,13 @@ logging.basicConfig(
 
 
 @lru_cache
-def collect_descendant_cuis(api_key: str, page_size: int, url: str) -> Iterable[str]:
+def collect_descendant_cuis(
+    umls_api_key: str, page_size: int, url: str
+) -> Iterable[str]:
     resp = requests.get(
         url,
         params={
-            "apiKey": api_key,
+            "apiKey": umls_api_key,
             "language": "ENG",
             "pageSize": page_size,
         },
@@ -96,13 +98,16 @@ def get_cui_atoms_dict(cui_api, cui: str) -> dict:
     return json.loads(cui_api.get_atoms(cui=cui, language="ENG"))
 
 
-def collect_cuis(cui_api, api_key: str, page_size: int, cui: str) -> Iterable[str]:
+def collect_cuis(cui_api, umls_api_key: str, page_size: int, cui: str) -> Iterable[str]:
     atoms_dict = get_cui_atoms_dict(cui_api, cui)
+    local_collect_descendant_cuis = partial(
+        collect_descendant_cuis, umls_api_key, page_size
+    )
     for atom in atoms_dict.get("result"):
         if atom is not None:
             descendants_url = atom.get("descendants")
             if descendants_url is not None and descendants_url != "NONE":
-                yield from collect_descendant_cuis(descendants_url, api_key, page_size)
+                yield from local_collect_descendant_cuis(descendants_url)
 
 
 def atom_to_synonym(lowercase_synonym: bool, atom: dict) -> str | None:
@@ -140,7 +145,7 @@ def save_cui_name_to_table(cui_api, cui_name_path: str, cui: str) -> None:
 
 
 def process(
-    api_key: str,
+    umls_api_key: str,
     source_dir: str,
     target_dir: str,
     root_cui_fn: str,
@@ -160,22 +165,22 @@ def process(
         logger.info(f"Erasing CUI synonym file: {cui_synonym_path}")
         os.remove(cui_synonym_path)
 
-    client = UMLSClient(api_key=api_key)
+    client = UMLSClient(api_key=umls_api_key)
     cui_api = client.cuiAPI
 
     logger.info(f"Reading Root CUIs from: {root_cui_path}")
+    local_collect_cuis = partial(collect_cuis, cui_api, umls_api_key, page_size)
     with open(root_cui_path, "r") as f:
         raw_root_cuis = filter(None, map(str.strip, f))
 
-    local_collect_cuis = partial(collect_cuis, cui_api, api_key, page_size)
-    all_unique_cuis = sorted(
-        set(
-            chain.from_iterable(
-                chain((root_cui,), local_collect_cuis(root_cui))
-                for root_cui in raw_root_cuis
+        all_unique_cuis = sorted(
+            set(
+                chain.from_iterable(
+                    chain((root_cui,), local_collect_cuis(root_cui))
+                    for root_cui in raw_root_cuis
+                )
             )
         )
-    )
 
     local_save_cui_name_to_table = partial(
         save_cui_name_to_table,
@@ -197,7 +202,7 @@ def process(
 def main():
     args = parser.parse_args()
     process(
-        args.api_key,
+        args.umls_api_key,
         args.source_dir,
         args.target_dir,
         args.root_cui_fn,
