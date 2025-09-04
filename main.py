@@ -9,6 +9,7 @@ import logging
 from collections.abc import Iterable
 from itertools import chain
 from functools import lru_cache, partial
+from typing import Any
 import json
 
 # import csv
@@ -170,8 +171,12 @@ def process(
 
     logger.info(f"Reading Root CUIs from: {root_cui_path}")
     local_collect_cuis = partial(collect_cuis, cui_api, umls_api_key, page_size)
+
+    def is_str_and_not_comment(line: Any) -> bool:
+        return isinstance(line, str) and not line.startswith("#")
+
     with open(root_cui_path, "r") as f:
-        raw_root_cuis = filter(None, map(str.strip, f))
+        raw_root_cuis = map(str.strip, filter(is_str_and_not_comment, f))
 
         all_unique_cuis = sorted(
             set(
