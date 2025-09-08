@@ -145,7 +145,7 @@ def save_cui_name_to_table(cui_api, cui_name_path: str, cui: str) -> None:
         f.write(f"{cui},{cui_name}\n")
 
 
-def process(
+def build_umls_tables(
     umls_api_key: str,
     source_dir: str,
     target_dir: str,
@@ -206,7 +206,7 @@ def process(
 
 def main():
     args = parser.parse_args()
-    process(
+    build_umls_tables(
         args.umls_api_key,
         args.source_dir,
         args.target_dir,
