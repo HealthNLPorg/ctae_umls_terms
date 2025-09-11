@@ -44,8 +44,9 @@ def create_ctakes_bsv(
         return " ".join(term.split()).lower()
 
     cleaned_terms_df.with_columns(
-        pl.col(term_key).map_elements(normalize_term).alias(term_key)
-    ).write_csv(
+        pl.col(term_key).map_elements(normalize_term).alias(term_key),
+        pl.lit("000").alias("TUI"),
+    ).select("root-cui", "TUI", "term").write_csv(
         os.path.join(output_dir, "total.bsv"),
         separator="|",
         include_header=False,
@@ -69,6 +70,7 @@ def main() -> None:
     args = parser.parse_args()
     df = pl.concat(pl.read_csv(input_csv) for input_csv in args.input_csvs)
     create_ctakes_bsv(df, args.output_dir)
+    create_cui_mappings(df, args.output_dir)
 
 
 if __name__ == "__main__":
