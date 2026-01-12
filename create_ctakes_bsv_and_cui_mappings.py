@@ -33,7 +33,7 @@ def parse_term_json(
     term_value = term_dictionary.get(term_key)
     if term_value is not None:
         return term_value
-    ValueError(f"Empty term for {term_key} in {term_json}")
+    raise ValueError(f"Empty term for {term_key} in {term_json}")
     return ""
 
 
